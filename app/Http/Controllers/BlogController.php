@@ -104,8 +104,63 @@ class BlogController extends Controller
     }
 
     // This method will update a blog
-    public function update()
+    public function update($id, Request $request)
     {
+        $blog = Blog::find($id);
+
+        if ($blog == null) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Blog not found.',
+            ]);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|min:10',
+            'short_des' => 'required',
+            'author' => 'required|min:3'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Please fix the errors',
+                'errors' => $validator->errors()
+            ]);
+        }
+
+        $blog->title = $request->title;
+        $blog->author = $request->author;
+        $blog->description = $request->description;
+        $blog->short_des = $request->short_des;
+        $blog->save();
+
+        // Save Image Here
+        $tempImage = TempImage::find($request->image_id);
+
+        if ($tempImage != null) {
+
+            // Delete old image here
+            File::delete(public_path('uploads/blogs/' . $blog->image));
+
+            $imageExtArray = explode('.', $tempImage->name);
+            $ext = last($imageExtArray);
+            $imageName = time() . '-' . $blog->id . '.' . $ext;
+
+            $blog->image = $imageName;
+            $blog->save();
+
+            $sourcePath = public_path('uploads/temp/' . $tempImage->name);
+            $destPath = public_path('uploads/blogs/' . $imageName);
+
+            File::copy($sourcePath, $destPath);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Blog updated successfully.',
+            'data' => $blog
+        ]);
     }
 
     // This method will delete a blog
